@@ -165,6 +165,7 @@ Rules:
 - Keep it grounded and specific. Vague posts get ignored.
 - If there is a code snippet in the context, reference
   the actual function name, variable, or error.
+- The project README and tech stack are provided as context. Use them to write about the ACTUAL project the developer is working on — not about Gitcast or any other tool. Reference the real project name, real technologies, and real features described in the README.
 """
 
 # ── Prompt Loading ───────────────────────────────────────────────────────────
@@ -288,7 +289,16 @@ def build_user_message(payload: dict) -> str:
     Structures raw thoughts, git diff, OCR screen text, and project context.
     """
     if payload.get("user_message"):
-        return payload["user_message"]
+        user_msg = payload["user_message"]
+        if payload.get("readme_content") and "## Project context" not in user_msg and "## README context" not in user_msg and "## README" not in user_msg:
+            user_msg += (
+                f"\n\n## Project context\n"
+                f"Project name: {payload.get('project_name', 'Unknown')}\n"
+                f"Tech stack: {payload.get('tech_stack', 'Unknown')}\n"
+                f"README:\n"
+                f"{payload['readme_content'][:1500]}"
+            )
+        return user_msg
     
     parts = []
     parts.append("Here is the context for this build update:\n")
@@ -309,6 +319,15 @@ def build_user_message(payload: dict) -> str:
     narrative = payload.get("narrative", "").strip()
     if narrative:
         parts.append(f"## Project context\n{narrative}")
+
+    if payload.get("readme_content"):
+        parts.append(
+            f"## Project context\n"
+            f"Project name: {payload.get('project_name', 'Unknown')}\n"
+            f"Tech stack: {payload.get('tech_stack', 'Unknown')}\n"
+            f"README:\n"
+            f"{payload['readme_content'][:1500]}"
+        )
 
     parts.append(
         "\nUsing the context above, generate the post now. "

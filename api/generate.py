@@ -210,3 +210,30 @@ Return the refined post now:"""
             continue
 
     raise Exception("All providers failed for refinement")
+
+async def generate_article(payload: dict) -> str:
+    from api.prompts import get_prompt
+    system_prompt = get_prompt("article")
+    user_message = f"""
+Project: {payload.get('narrative', '')}
+
+README:
+{payload.get('readme_content', 'Not provided')}
+
+Project context:
+{payload.get('project_context', '')}
+
+Sprint log entries:
+{payload.get('sprint_log', [])}
+
+Write a complete Medium-ready article about
+this project and the developer's recent work.
+"""
+    # use openrouter for long context
+    return await _call_provider(
+        provider="openrouter",
+        system_prompt=system_prompt,
+        user_message=user_message,
+        byok_key=payload.get("byok_key"),
+        byok_provider=payload.get("byok_provider"),
+    )

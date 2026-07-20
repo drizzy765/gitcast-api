@@ -1,5 +1,7 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from api.routes import router
 import os
 
@@ -8,6 +10,16 @@ app = FastAPI(
     description="Cloud backend for Gitcast",
     version="1.0.0",
 )
+
+@app.exception_handler(RequestValidationError)
+async def validation_handler(
+        request: Request,
+        exc: RequestValidationError):
+    print(f"[422] Validation error: {exc.errors()}")
+    print(f"[422] Body: {await request.body()}")
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors()})
 
 app.add_middleware(
     CORSMiddleware,

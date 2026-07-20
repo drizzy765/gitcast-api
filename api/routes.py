@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Header
-from pydantic import BaseModel
-from typing import Optional
+from pydantic import BaseModel, ConfigDict
+from typing import Optional, Any
 from api.generate import generate_posts
 from api.auth import get_or_create_session
 from storage.supabase_client import (
@@ -12,7 +12,9 @@ router = APIRouter()
 # ── Request models ────────────────────────────────
 
 class GenerateRequest(BaseModel):
-    raw_thought: str
+    model_config = ConfigDict(extra="allow")
+
+    raw_thought: str = ""
     ocr_text: Optional[str] = ""
     git_diff: Optional[str] = ""
     git_diff_available: Optional[bool] = False
@@ -21,11 +23,16 @@ class GenerateRequest(BaseModel):
     screenshot_b64: Optional[str] = None
     user_message: Optional[str] = ""
     format_keys: Optional[list] = [
-        "x_post", "linkedin", "pr_desc", "quick_win"]
+        "x_post", "linkedin",
+        "pr_desc", "quick_win"]
     byok_key: Optional[str] = None
     byok_provider: Optional[str] = None
+    project_context: Optional[str] = ""
+    readme_content: Optional[str] = ""
+    tech_stack: Optional[str] = ""
 
 class SavePostRequest(BaseModel):
+    model_config = ConfigDict(extra="allow")
     post_text: str
     format_key: str
     platform: Optional[str] = "twitter"
@@ -34,6 +41,7 @@ class SavePostRequest(BaseModel):
     session_id: Optional[str] = ""
 
 class UpdatePostRequest(BaseModel):
+    model_config = ConfigDict(extra="allow")
     post_id: str
     session_id: str
     posted_verified: Optional[bool] = None
@@ -44,9 +52,19 @@ class UpdatePostRequest(BaseModel):
     reposts: Optional[int] = None
 
 class ChatRequest(BaseModel):
+    model_config = ConfigDict(extra="allow")
     instruction: str
     current_post: str
     format_key: str
+    byok_key: Optional[str] = None
+    byok_provider: Optional[str] = None
+
+class ArticleRequest(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    sprint_log: Optional[list] = []
+    narrative: Optional[str] = ""
+    readme_content: Optional[str] = ""
+    project_context: Optional[str] = ""
     byok_key: Optional[str] = None
     byok_provider: Optional[str] = None
 
@@ -95,6 +113,35 @@ async def chat(request: ChatRequest):
             byok_provider=request.byok_provider,
         )
         return {"success": True, "refined_post": refined}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=str(e))
+
+# ── Article endpoints ─────────────────────────────
+
+@router.post("/api/article/generate")
+async def generate_article(request: ArticleRequest):
+    try:
+        from api.generate import generate_article
+        result = await generate_article(
+            request.dict())
+        return {"success": True, "article": result}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=str(e))
+
+@router.post("/api/article/refine")
+async def refine_article(request: ChatRequest):
+    try:
+        from api.generate import refine_post
+        result = await refine_post(
+            current_post=request.current_post,
+            instruction=request.instruction,
+            format_key="article",
+            byok_key=request.byok_key,
+            byok_provider=request.byok_provider,
+        )
+        return {"success": True, "article": result}
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=str(e))
